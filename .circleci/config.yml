@@ -1,0 +1,57 @@
+# Specify the CircleCI configuration version
+version: 2.1
+
+# Define reusable environments
+executors:
+  docker-executor:
+    docker:
+      - image: cimg/base:stable # Use a stable CircleCI image with Docker and basic tools
+
+# Define the job that will build and push the Docker images
+jobs:
+  build-and-push:
+    executor: docker-executor # Use the executor defined above
+    environment:
+      DOCKER_BUILDKIT: 1 # Enable Docker BuildKit for improved builds
+    steps:
+      - checkout # Pull the latest code from your GitHub repository
+
+      # Set up Docker so we can build and push images
+      - setup_remote_docker:
+          version: 20.10.14 # Specify Docker version for remote Docker engine
+
+      # Build the frontend Docker image and tag it
+      - run:
+          name: Build frontend Docker image
+          command: |
+            docker build -t kuzan0069/dream-vacation-frontend ./frontend
+
+      # Build the backend Docker image and tag it
+      - run:
+          name: Build backend Docker image
+          command: |
+            docker build -t kuzan0069/dream-vacation-backend ./backend
+
+      # Authenticate to DockerHub using environment variables stored in CircleCI
+      - run:
+          name: Log in to DockerHub
+          command: |
+            echo "$DOCKERHUB_PASS" | docker login -u "$DOCKERHUB_USER" --password-stdin
+
+      # Push the frontend Docker image to DockerHub
+      - run:
+          name: Push frontend image to DockerHub
+          command: |
+            docker push kuzan0069/dream-vacation-frontend
+
+      # Push the backend Docker image to DockerHub
+      - run:
+          name: Push backend image to DockerHub
+          command: |
+            docker push kuzan0069/dream-vacation-backend
+
+# Define the workflow, which dictates the order jobs are run
+workflows:
+  build-and-deploy:
+    jobs:
+      - build-and-push # This workflow just runs the build-and-push job for now
