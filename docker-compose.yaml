@@ -1,0 +1,18 @@
+version: '3.8'
+
+services:
+  backend:
+    working_dir: /app
+    build: ./backend
+    ports:
+      - "3001:3001"
+    env_file:
+      - ./backend/.env  # Reference the .env file inside backend
+
+  frontend:
+    build: ./frontend
+    working_dir: /app
+    ports:
+      - "8080:80"
+    depends_on:
+      - backend  # Frontend waits for the backend to start.

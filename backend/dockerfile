@@ -1,0 +1,21 @@
+# Use Node.js as the base image
+FROM node:16-alpine
+
+# Set working directory
+WORKDIR /app
+
+# Copy package.json and install dependencies
+COPY package.json package-lock.json ./
+
+# Step 4: clear cache and Install dependencies
+RUN npm cache clean --force
+RUN npm install
+
+# Copy the rest of the backend code
+COPY . .
+
+# Expose the backend port
+EXPOSE 3001
+
+# Start the backend server
+CMD ["npm", "start"]
