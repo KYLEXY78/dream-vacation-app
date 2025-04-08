@@ -17,8 +17,7 @@ jobs:
       - checkout # Pull the latest code from your GitHub repository
 
       # Set up Docker so we can build and push images
-      - setup_remote_docker:
-          version: 20.10.14 # Specify Docker version for remote Docker engine
+      - setup_remote_docker #not specifying the version enables CircleCI to automatically provision a compatible Docker version based on your resource class.
 
       # Build the frontend Docker image and tag it
       - run:
