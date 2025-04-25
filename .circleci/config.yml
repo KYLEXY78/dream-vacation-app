@@ -54,3 +54,4 @@ workflows:
   build-and-deploy:
     jobs:
       - build-and-push # This workflow just runs the build-and-push job for now
+  
