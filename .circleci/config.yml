@@ -71,19 +71,21 @@ jobs:
             FRONTEND=$(cat frontend_changed.flag)
             BACKEND=$(cat backend_changed.flag)
 
-            ssh ec2-user@13.53.38.76 bash -s <<-'EOF'
-              if [ "$FRONTEND" = "true" ]; then
-                docker pull kuzan0069/dream-vacation-frontend
-                docker rm -f dream-vacation-frontend || true
+            if [ "$FRONTEND" = "true" ]; then
+              ssh -o StrictHostKeyChecking=no ec2-user@13.53.38.76 "
+                docker pull kuzan0069/dream-vacation-frontend &&
+                docker rm -f dream-vacation-frontend || true &&
                 docker run -d -p 80:80 --name dream-vacation-frontend kuzan0069/dream-vacation-frontend
-              fi
+              "
+            fi
 
-              if [ "$BACKEND" = "true" ]; then
-                docker pull kuzan0069/dream-vacation-backend
-                docker rm -f dream-vacation-backend || true
+            if [ "$BACKEND" = "true" ]; then
+              ssh -o StrictHostKeyChecking=no ec2-user@13.53.38.76 "
+                docker pull kuzan0069/dream-vacation-backend &&
+                docker rm -f dream-vacation-backend || true &&
                 docker run -d -p 3001:3001 --name dream-vacation-backend kuzan0069/dream-vacation-backend
-              fi
-            EOF
+              "
+            fi
 
 workflows:
   build-and-deploy:
