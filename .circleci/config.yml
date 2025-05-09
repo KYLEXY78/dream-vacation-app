@@ -75,7 +75,7 @@ jobs:
               ssh -o StrictHostKeyChecking=no ec2-user@13.53.38.76 "
                 docker pull kuzan0069/dream-vacation-frontend &&
                 docker rm -f dream-vacation-frontend || true &&
-                docker run -d -p 80:80 --name dream-vacation-frontend kuzan0069/dream-vacation-frontend
+                docker run -d -p 80:80 --env-file ~/frontend.env --name dream-vacation-frontend kuzan0069/dream-vacation-frontend
               "
             fi
 
@@ -83,7 +83,7 @@ jobs:
               ssh -o StrictHostKeyChecking=no ec2-user@13.53.38.76 "
                 docker pull kuzan0069/dream-vacation-backend &&
                 docker rm -f dream-vacation-backend || true &&
-                docker run -d -p 3001:3001 --name dream-vacation-backend kuzan0069/dream-vacation-backend
+                docker run -d -p 3001:3001 --env-file ~/backend.env --name dream-vacation-backend kuzan0069/dream-vacation-backend
               "
             fi
 

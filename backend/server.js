@@ -6,10 +6,9 @@ const axios = require('axios');
 console.log("Database URL:", process.env.DATABASE_URL);
 
 const app = express();
-const port = process.env.PORT || 3001;
 
 // Middleware
-app.use(cors());
+app.use(cors({ origin: '*' }));
 app.use(express.json());
 
 console.log("DB_HOST:", process.env.DB_HOST);
@@ -17,6 +16,11 @@ console.log("DB_USER:", process.env.DB_USER);
 console.log("DB_PASSWORD:", process.env.DB_PASSWORD ? "******" : "Not set");
 console.log("DB_NAME:", process.env.DB_NAME);
 console.log("DB_PORT:", process.env.DB_PORT);
+
+const port = process.env.PORT || 3001;
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`Server running on port ${PORT}`);
+});
 
 
 // MySQL Connection Pool
