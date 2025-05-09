@@ -71,7 +71,7 @@ jobs:
             FRONTEND=$(cat frontend_changed.flag)
             BACKEND=$(cat backend_changed.flag)
 
-            ssh ec2-user@13.53.38.76 bash -s <<EOF>>
+            ssh ec2-user@13.53.38.76 bash -s <<-'EOF'
               if [ "$FRONTEND" = "true" ]; then
                 docker pull kuzan0069/dream-vacation-frontend
                 docker rm -f dream-vacation-frontend || true
