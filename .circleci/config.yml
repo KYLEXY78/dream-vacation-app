@@ -78,28 +78,26 @@ jobs:
 
             if [ "$FRONTEND" = "true" ]; then
               echo "Deploying Frontend to EC2"
-              ssh -o StrictHostKeyChecking=no ec2-user@13.53.38.76 << 'EOF'
-                docker pull $DOCKERHUB_USER/dream-vacation-frontend:latest || exit 1
-                docker rm -f dream-vacation-frontend || true
+              ssh -o StrictHostKeyChecking=no ec2-user@13.53.38.76 "\
+                docker pull $DOCKERHUB_USER/dream-vacation-frontend:latest || exit 1; \
+                docker rm -f dream-vacation-frontend || true; \
                 docker run -d \
                   -p 80:80 \
                   --env-file ~/frontend.env \
                   --name dream-vacation-frontend \
-                  $DOCKERHUB_USER/dream-vacation-frontend:latest
-              EOF
+                  $DOCKERHUB_USER/dream-vacation-frontend:latest"
             fi
 
             if [ "$BACKEND" = "true" ]; then
               echo "Deploying Backend to EC2"
-              ssh -o StrictHostKeyChecking=no ec2-user@13.53.38.76 << 'EOF'
-                docker pull $DOCKERHUB_USER/dream-vacation-backend:latest || exit 1
-                docker rm -f dream-vacation-backend || true
+              ssh -o StrictHostKeyChecking=no ec2-user@13.53.38.76 "\
+                docker pull $DOCKERHUB_USER/dream-vacation-backend:latest || exit 1; \
+                docker rm -f dream-vacation-backend || true; \
                 docker run -d \
                   -p 3001:3001 \
                   --env-file ~/backend.env \
                   --name dream-vacation-backend \
-                  $DOCKERHUB_USER/dream-vacation-backend:latest
-              EOF
+                  $DOCKERHUB_USER/dream-vacation-backend:latest"
             fi
 
 workflows:
