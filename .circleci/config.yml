@@ -25,26 +25,29 @@ jobs:
           name: Build & Push Only Changed Tier
           command: |
             git fetch origin main
-            CHANGED=$(git diff --name-only origin/main...HEAD)
+            CHANGED=$(git diff --name-only origin/main...HEAD || echo "")
 
             FRONTEND_CHANGED=false
             BACKEND_CHANGED=false
 
+            # Check for changes in each directory
             echo "$CHANGED" | grep -q '^frontend/' && FRONTEND_CHANGED=true
             echo "$CHANGED" | grep -q '^backend/' && BACKEND_CHANGED=true
 
+            # Build and push changed containers
             if $FRONTEND_CHANGED; then
-              echo "Frontend changed"
-              docker build -t kuzan0069/dream-vacation-frontend ./frontend
-              docker push kuzan0069/dream-vacation-frontend
+              echo "Building and pushing Frontend"
+              docker build -t $DOCKERHUB_USER/dream-vacation-frontend:latest ./frontend
+              docker push $DOCKERHUB_USER/dream-vacation-frontend:latest
             fi
 
             if $BACKEND_CHANGED; then
-              echo "Backend changed"
-              docker build -t kuzan0069/dream-vacation-backend ./backend
-              docker push kuzan0069/dream-vacation-backend
+              echo "Building and pushing Backend"
+              docker build -t $DOCKERHUB_USER/dream-vacation-backend:latest ./backend
+              docker push $DOCKERHUB_USER/dream-vacation-backend:latest
             fi
 
+            # Create change flags
             echo "$FRONTEND_CHANGED" > frontend_changed.flag
             echo "$BACKEND_CHANGED" > backend_changed.flag
 
@@ -68,23 +71,35 @@ jobs:
       - run:
           name: Deploy Only Changed Tier to EC2
           command: |
+            set -e  # Exit immediately if any command fails
+            
             FRONTEND=$(cat frontend_changed.flag)
             BACKEND=$(cat backend_changed.flag)
 
             if [ "$FRONTEND" = "true" ]; then
-              ssh -o StrictHostKeyChecking=no ec2-user@13.53.38.76 "
-                docker pull kuzan0069/dream-vacation-frontend &&
-                docker rm -f dream-vacation-frontend || true &&
-                docker run -d -p 80:80 --env-file ~/frontend.env --name dream-vacation-frontend kuzan0069/dream-vacation-frontend
-              "
+              echo "Deploying Frontend to EC2"
+              ssh -o StrictHostKeyChecking=no ec2-user@13.53.38.76 << 'EOF'
+                docker pull $DOCKERHUB_USER/dream-vacation-frontend:latest || exit 1
+                docker rm -f dream-vacation-frontend || true
+                docker run -d \
+                  -p 80:80 \
+                  --env-file ~/frontend.env \
+                  --name dream-vacation-frontend \
+                  $DOCKERHUB_USER/dream-vacation-frontend:latest
+              EOF
             fi
 
             if [ "$BACKEND" = "true" ]; then
-              ssh -o StrictHostKeyChecking=no ec2-user@13.53.38.76 "
-                docker pull kuzan0069/dream-vacation-backend &&
-                docker rm -f dream-vacation-backend || true &&
-                docker run -d -p 3001:3001 --env-file ~/backend.env --name dream-vacation-backend kuzan0069/dream-vacation-backend
-              "
+              echo "Deploying Backend to EC2"
+              ssh -o StrictHostKeyChecking=no ec2-user@13.53.38.76 << 'EOF'
+                docker pull $DOCKERHUB_USER/dream-vacation-backend:latest || exit 1
+                docker rm -f dream-vacation-backend || true
+                docker run -d \
+                  -p 3001:3001 \
+                  --env-file ~/backend.env \
+                  --name dream-vacation-backend \
+                  $DOCKERHUB_USER/dream-vacation-backend:latest
+              EOF
             fi
 
 workflows:
