@@ -30,11 +30,9 @@ jobs:
             FRONTEND_CHANGED=false
             BACKEND_CHANGED=false
 
-            # Check for changes in each directory
             echo "$CHANGED" | grep -q '^frontend/' && FRONTEND_CHANGED=true
             echo "$CHANGED" | grep -q '^backend/' && BACKEND_CHANGED=true
 
-            # Build and push changed containers
             if $FRONTEND_CHANGED; then
               echo "Building and pushing Frontend"
               docker build -t $DOCKERHUB_USER/dream-vacation-frontend:latest ./frontend
@@ -47,11 +45,9 @@ jobs:
               docker push $DOCKERHUB_USER/dream-vacation-backend:latest
             fi
 
-            # Create change flags
             echo "$FRONTEND_CHANGED" > frontend_changed.flag
             echo "$BACKEND_CHANGED" > backend_changed.flag
 
-      # Persist change flags
       - persist_to_workspace:
           root: .
           paths:
@@ -69,36 +65,71 @@ jobs:
             - "SHA256:Z4A+Ef7DJZ3N5AtxlC9ISZK/wS6owpq10wDCPtxhTyw"
 
       - run:
+          name: Verify Docker Hub credentials
+          command: |
+            echo "Verifying Docker Hub credentials..."
+            if ! docker login -u $DOCKERHUB_USER -p $DOCKERHUB_PASS; then
+              echo "Docker Hub login failed"
+              exit 1
+            fi
+
+      - run:
           name: Deploy Only Changed Tier to EC2
           command: |
-            set -e  # Exit immediately if any command fails
-            
+            set -ex  # Enable debugging and exit on error
+
             FRONTEND=$(cat frontend_changed.flag)
             BACKEND=$(cat backend_changed.flag)
 
+            function deploy_service() {
+              local service=$1
+              local port=$2
+              
+              echo "=== Starting $service deployment ==="
+              
+              # 1. Pull the image with retry logic
+              echo "Pulling $service image..."
+              if ! ssh -o StrictHostKeyChecking=no ec2-user@13.53.38.76 \
+                "for i in {1..3}; do docker pull $DOCKERHUB_USER/dream-vacation-$service:latest && break || sleep 15; done"; then
+                echo "Failed to pull $service image after 3 attempts"
+                exit 1
+              fi
+              
+              # 2. Stop and remove old container
+              echo "Removing old $service container..."
+              ssh -o StrictHostKeyChecking=no ec2-user@13.53.38.76 \
+                "docker rm -f dream-vacation-$service || true"
+              
+              # 3. Run new container
+              echo "Starting new $service container..."
+              ssh -o StrictHostKeyChecking=no ec2-user@13.53.38.76 \
+                "docker run -d \
+                  -p $port:$port \
+                  --env-file ~/$service.env \
+                  --name dream-vacation-$service \
+                  --restart unless-stopped \
+                  $DOCKERHUB_USER/dream-vacation-$service:latest"
+              
+              # 4. Verify deployment
+              echo "Verifying $service deployment..."
+              if ! ssh -o StrictHostKeyChecking=no ec2-user@13.53.38.76 \
+                "docker inspect --format='{{.State.Status}}' dream-vacation-$service | grep -q 'running'"; then
+                echo "$service container failed to start"
+                exit 1
+              fi
+              
+              echo "=== $service deployment successful ==="
+            }
+
             if [ "$FRONTEND" = "true" ]; then
-              echo "Deploying Frontend to EC2"
-              ssh -o StrictHostKeyChecking=no ec2-user@13.53.38.76 "\
-                docker pull $DOCKERHUB_USER/dream-vacation-frontend:latest || exit 1; \
-                docker rm -f dream-vacation-frontend || true; \
-                docker run -d \
-                  -p 80:80 \
-                  --env-file ~/frontend.env \
-                  --name dream-vacation-frontend \
-                  $DOCKERHUB_USER/dream-vacation-frontend:latest"
+              deploy_service "frontend" "80"
             fi
 
             if [ "$BACKEND" = "true" ]; then
-              echo "Deploying Backend to EC2"
-              ssh -o StrictHostKeyChecking=no ec2-user@13.53.38.76 "\
-                docker pull $DOCKERHUB_USER/dream-vacation-backend:latest || exit 1; \
-                docker rm -f dream-vacation-backend || true; \
-                docker run -d \
-                  -p 3001:3001 \
-                  --env-file ~/backend.env \
-                  --name dream-vacation-backend \
-                  $DOCKERHUB_USER/dream-vacation-backend:latest"
+              deploy_service "backend" "3001"
             fi
+
+            echo "All deployments completed successfully"
 
 workflows:
   build-and-deploy:
