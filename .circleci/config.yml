@@ -1,140 +1,56 @@
+# Specify the CircleCI configuration version
 version: 2.1
 
+# Define reusable environments
 executors:
   docker-executor:
     docker:
-      - image: cimg/base:stable
+      - image: cimg/base:stable # Use a stable CircleCI image with Docker and basic tools
 
+# Define the job that will build and push the Docker images
 jobs:
-  build-and-deploy:
-    executor: docker-executor
+  build-and-push:
+    executor: docker-executor # Use the executor defined above
     environment:
-      DOCKER_BUILDKIT: 1
+      DOCKER_BUILDKIT: 1 # Enable Docker BuildKit for improved builds
     steps:
-      - checkout
-      - setup_remote_docker
+      - checkout # Pull the latest code from your GitHub repository
 
-      # Login to Docker Hub
+      # Set up Docker so we can build and push images
+      - setup_remote_docker #not specifying the version enables CircleCI to automatically provision a compatible Docker version based on your resource class.
+
+      # Build the frontend Docker image and tag it
       - run:
-          name: Docker login
+          name: Build frontend Docker image
+          command: |
+            docker build -t kuzan0069/dream-vacation-frontend ./frontend
+
+      # Build the backend Docker image and tag it
+      - run:
+          name: Build backend Docker image
+          command: |
+            docker build -t kuzan0069/dream-vacation-backend ./backend
+
+      # Authenticate to DockerHub using environment variables stored in CircleCI
+      - run:
+          name: Log in to DockerHub
           command: |
             echo "$DOCKERHUB_PASS" | docker login -u "$DOCKERHUB_USER" --password-stdin
 
-      # Detect changes and build/push only changed tier
+      # Push the frontend Docker image to DockerHub
       - run:
-          name: Build & Push Only Changed Tier
+          name: Push frontend image to DockerHub
           command: |
-            git fetch origin main
-            CHANGED=$(git diff --name-only origin/main...HEAD || echo "")
+            docker push kuzan0069/dream-vacation-frontend
 
-            FRONTEND_CHANGED=false
-            BACKEND_CHANGED=false
-
-            echo "$CHANGED" | grep -q '^frontend/' && FRONTEND_CHANGED=true
-            echo "$CHANGED" | grep -q '^backend/' && BACKEND_CHANGED=true
-
-            if $FRONTEND_CHANGED; then
-              echo "Building and pushing Frontend"
-              docker build -t $DOCKERHUB_USER/dream-vacation-frontend:latest ./frontend
-              docker push $DOCKERHUB_USER/dream-vacation-frontend:latest
-            fi
-
-            if $BACKEND_CHANGED; then
-              echo "Building and pushing Backend"
-              docker build -t $DOCKERHUB_USER/dream-vacation-backend:latest ./backend
-              docker push $DOCKERHUB_USER/dream-vacation-backend:latest
-            fi
-
-            echo "$FRONTEND_CHANGED" > frontend_changed.flag
-            echo "$BACKEND_CHANGED" > backend_changed.flag
-
-      - persist_to_workspace:
-          root: .
-          paths:
-            - frontend_changed.flag
-            - backend_changed.flag
-
-  deploy-to-ec2:
-    executor: docker-executor
-    steps:
-      - attach_workspace:
-          at: .
-
-      - add_ssh_keys:
-          fingerprints:
-            - "SHA256:Z4A+Ef7DJZ3N5AtxlC9ISZK/wS6owpq10wDCPtxhTyw"
-
+      # Push the backend Docker image to DockerHub
       - run:
-          name: Verify Docker Hub credentials
+          name: Push backend image to DockerHub
           command: |
-            echo "Verifying Docker Hub credentials..."
-            if ! docker login -u $DOCKERHUB_USER -p $DOCKERHUB_PASS; then
-              echo "Docker Hub login failed"
-              exit 1
-            fi
+            docker push kuzan0069/dream-vacation-backend
 
-      - run:
-          name: Deploy Only Changed Tier to EC2
-          command: |
-            set -ex  # Enable debugging and exit on error
-
-            FRONTEND=$(cat frontend_changed.flag)
-            BACKEND=$(cat backend_changed.flag)
-
-            function deploy_service() {
-              local service=$1
-              local port=$2
-              
-              echo "=== Starting $service deployment ==="
-              
-              # 1. Pull the image with retry logic
-              echo "Pulling $service image..."
-              if ! ssh -o StrictHostKeyChecking=no ec2-user@13.53.38.76 \
-                "for i in {1..3}; do docker pull $DOCKERHUB_USER/dream-vacation-$service:latest && break || sleep 15; done"; then
-                echo "Failed to pull $service image after 3 attempts"
-                exit 1
-              fi
-              
-              # 2. Stop and remove old container
-              echo "Removing old $service container..."
-              ssh -o StrictHostKeyChecking=no ec2-user@13.53.38.76 \
-                "docker rm -f dream-vacation-$service || true"
-              
-              # 3. Run new container
-              echo "Starting new $service container..."
-              ssh -o StrictHostKeyChecking=no ec2-user@13.53.38.76 \
-                "docker run -d \
-                  -p $port:$port \
-                  --env-file ~/$service.env \
-                  --name dream-vacation-$service \
-                  --restart unless-stopped \
-                  $DOCKERHUB_USER/dream-vacation-$service:latest"
-              
-              # 4. Verify deployment
-              echo "Verifying $service deployment..."
-              if ! ssh -o StrictHostKeyChecking=no ec2-user@13.53.38.76 \
-                "docker inspect --format='{{.State.Status}}' dream-vacation-$service | grep -q 'running'"; then
-                echo "$service container failed to start"
-                exit 1
-              fi
-              
-              echo "=== $service deployment successful ==="
-            }
-
-            if [ "$FRONTEND" = "true" ]; then
-              deploy_service "frontend" "80"
-            fi
-
-            if [ "$BACKEND" = "true" ]; then
-              deploy_service "backend" "3001"
-            fi
-
-            echo "All deployments completed successfully"
-
+# Define the workflow, which dictates the order jobs are run
 workflows:
   build-and-deploy:
     jobs:
-      - build-and-deploy
-      - deploy-to-ec2:
-          requires:
-            - build-and-deploy
+      - build-and-push # This workflow just runs the build-and-push job for now
