@@ -17,7 +17,7 @@ console.log("DB_PASSWORD:", process.env.DB_PASSWORD ? "******" : "Not set");
 console.log("DB_NAME:", process.env.DB_NAME);
 console.log("DB_PORT:", process.env.DB_PORT);
 
-const port = process.env.PORT || 3001;
+const PORT = process.env.PORT || 3001;
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`Server running on port ${PORT}`);
 });
