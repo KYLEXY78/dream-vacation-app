@@ -14,9 +14,6 @@ RUN npm install
 # Copy the rest of the backend code
 COPY . .
 
-# Copy the backend environment variables file into the container
-COPY backend.env .env
-
 # Expose the backend port
 EXPOSE 3001
 

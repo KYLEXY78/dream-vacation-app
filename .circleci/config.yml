@@ -1,56 +1,44 @@
-# Specify the CircleCI configuration version
 version: 2.1
 
-# Define reusable environments
-executors:
-  docker-executor:
-    docker:
-      - image: cimg/base:stable # Use a stable CircleCI image with Docker and basic tools
-
-# Define the job that will build and push the Docker images
 jobs:
   build-and-push:
-    executor: docker-executor # Use the executor defined above
-    environment:
-      DOCKER_BUILDKIT: 1 # Enable Docker BuildKit for improved builds
+    docker:
+      - image: cimg/base:stable
     steps:
-      - checkout # Pull the latest code from your GitHub repository
+      - checkout
+      - setup_remote_docker
 
-      # Set up Docker so we can build and push images
-      - setup_remote_docker #not specifying the version enables CircleCI to automatically provision a compatible Docker version based on your resource class.
-
-      # Build the frontend Docker image and tag it
+      # Login to Docker Hub
       - run:
-          name: Build frontend Docker image
-          command: |
-            docker build -t kuzan0069/dream-vacation-frontend ./frontend
-
-      # Build the backend Docker image and tag it
-      - run:
-          name: Build backend Docker image
-          command: |
-            docker build -t kuzan0069/dream-vacation-backend ./backend
-
-      # Authenticate to DockerHub using environment variables stored in CircleCI
-      - run:
-          name: Log in to DockerHub
+          name: Docker Login
           command: |
             echo "$DOCKERHUB_PASS" | docker login -u "$DOCKERHUB_USER" --password-stdin
 
-      # Push the frontend Docker image to DockerHub
+      # Build Frontend (if frontend/ changed)
       - run:
-          name: Push frontend image to DockerHub
+          name: Build Frontend
           command: |
-            docker push kuzan0069/dream-vacation-frontend
+            if git diff --name-only HEAD~1 | grep -q "^frontend/"; then
+              docker build -t $DOCKERHUB_USER/dream-vacation-frontend:latest ./frontend
+              docker push $DOCKERHUB_USER/dream-vacation-frontend:latest
+              echo "Frontend image updated"
+            else
+              echo "No frontend changes - skipping build"
+            fi
 
-      # Push the backend Docker image to DockerHub
+      # Build Backend (if backend/ changed)
       - run:
-          name: Push backend image to DockerHub
+          name: Build Backend
           command: |
-            docker push kuzan0069/dream-vacation-backend
+            if git diff --name-only HEAD~1 | grep -q "^backend/"; then
+              docker build -t $DOCKERHUB_USER/dream-vacation-backend:latest ./backend
+              docker push $DOCKERHUB_USER/dream-vacation-backend:latest
+              echo "Backend image updated"
+            else
+              echo "No backend changes - skipping build"
+            fi
 
-# Define the workflow, which dictates the order jobs are run
 workflows:
-  build-and-deploy:
+  build-only:
     jobs:
-      - build-and-push # This workflow just runs the build-and-push job for now
+      - build-and-push
