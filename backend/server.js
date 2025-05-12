@@ -65,6 +65,7 @@ app.get('/api/destinations', async (req, res) => {
   }
 });
 
+
 app.post('/api/destinations', async (req, res) => {
   const { country } = req.body;
   try {
@@ -93,6 +94,11 @@ app.delete('/api/destinations/:id', async (req, res) => {
     console.error(err);
     res.status(500).json({ error: 'Internal server error' });
   }
+});
+
+// Health check endpoint
+app.get('/api/healthcheck', (req, res) => {
+  res.status(200).json({ status: 'healthy' });
 });
 
 // Start Server
