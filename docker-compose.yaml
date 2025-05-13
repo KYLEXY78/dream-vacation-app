@@ -13,6 +13,6 @@ services:
     build: ./frontend
     working_dir: /app
     ports:
-      - "8080:80"
+      - "4000:4000"
     depends_on:
       - backend  # Frontend waits for the backend to start.
