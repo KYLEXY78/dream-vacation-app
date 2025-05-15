@@ -16,10 +16,14 @@ jobs:
 
       # Build Frontend (if frontend/ changed)
       - run:
-          name: Build Frontend
+          name: Build Frontend with Dynamic IP
           command: |
             if git diff --name-only HEAD~1 | grep -q "^frontend/"; then
-              docker build -t $DOCKERHUB_USER/dream-vacation-frontend:latest ./frontend
+              CURRENT_IP=$(curl -s http://169.254.169.254/latest/meta-data/public-ipv4 || echo "fallback.ip.here")
+              docker build \
+                --build-arg PUBLIC_IP=$CURRENT_IP \
+                -t $DOCKERHUB_USER/dream-vacation-frontend:latest \
+                ./frontend
               docker push $DOCKERHUB_USER/dream-vacation-frontend:latest
               echo "Frontend image updated"
             else

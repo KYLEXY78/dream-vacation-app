@@ -1,6 +1,11 @@
 # Use Node.js for building, then serve with Nginx
 FROM node:16-alpine AS frontend
 
+# Accept the IP as build argument
+ARG PUBLIC_IP
+# Set as environment variable
+ENV REACT_APP_API_URL=http://${PUBLIC_IP}:3001
+
 # Set the working directory inside the container
 WORKDIR /app
 
