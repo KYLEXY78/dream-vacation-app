@@ -3,7 +3,7 @@ version: 2.1
 jobs:
   build-and-push:
     docker:
-      - image: cimg /base:stable
+      - image: cimg/base:stable
     steps:
       - checkout
       - setup_remote_docker
