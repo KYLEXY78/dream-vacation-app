@@ -10,9 +10,13 @@ services:
       - ./backend/.env  # Reference the .env file inside backend
 
   frontend:
-    build: ./frontend
-    working_dir: /app
-    ports:
-      - "4000:4000"
-    depends_on:
-      - backend  # Frontend waits for the backend to start.
+  build:
+    context: ./frontend
+    args:
+      REACT_APP_API_URL: ${REACT_APP_API_URL}
+  working_dir: /app
+  ports:
+    - "4000:4000"
+  depends_on:
+    - backend
+
